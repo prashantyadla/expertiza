@@ -6,7 +6,7 @@ require 'logger'
 # required by autosummary
 module SummaryHelper
   class Summary
-    attr_accessor :summary, :reviewers, :avg_scores_by_reviewee, :avg_scores_by_round, :avg_scores_by_criterion, :summary_ws_url
+    attr_accessor :summary, :reviewers, :avg_scores_by_reviewee, :avg_scores_by_round, :avg_scores_by_criterion, :summary_ws_url, :search
 
     # produce average score and summary of comments for reviews by a reviewer for each question
     def summarize_reviews_by_reviewee(questions, assignment, reviewee_id, summary_ws_url)
@@ -87,7 +87,7 @@ module SummaryHelper
     #   it does not seem to be used anywhere in Expertiza as of 4/21/19
     #   aside from in methods which are themselves not used anywhere in Expertiza as of 4/21/19
     # produce summaries for instructor and students. It sum up the feedback by criterion for each reviewee
-    def summarize_reviews_by_reviewees(assignment, summary_ws_url)
+    def summarize_reviews_by_reviewees(assignment, summary_ws_url, search)
       self.summary = ({})
       self.avg_scores_by_reviewee = ({})
       self.avg_scores_by_round = ({})
@@ -99,11 +99,38 @@ module SummaryHelper
       rubric = get_questions_by_assignment(assignment)
 
       # get all teams in this assignment
-      teams = Team.select(:id, :name).where(parent_id: assignment.id).order(:name)
+      # teams = Team.select(:id, :name).where(parent_id: assignment.id).order(:name)
+      team_filter = search[:team].to_s.strip
+
+      # Added min_score, max_score and text filters which will be applied to filter the query output further
+      min_score = search[:min_score].to_s.strip
+      max_score = search[:max_score].to_s.strip
+      text = search[:text].to_s.strip
+
+      # Advanced Search: Query updated based on team_filter for team name
+      query = Team
+      query = query.where('name LIKE ?', "%#{team_filter}%") if team_filter.present?
+      teams = query.select(:id, :name).where(parent_id: assignment.id).order(:name)
 
       teams.each do |reviewee|
+        is_valid = true
+        includes_keywords = false
+
         summarize_reviews_by_team_reviewee(assignment, reviewee, rubric)
         self.avg_scores_by_reviewee[reviewee.name] = calculate_avg_score_by_reviewee(self.avg_scores_by_round[reviewee.name], assignment.rounds_of_reviews)
+        # Validity checks for filtering based on min, max scores and if output contains keywords mentioned in text
+        is_valid &= avg_score >= min_score.to_i if min_score.present?
+        is_valid &= avg_score <= max_score.to_i if max_score.present?
+        #is_valid &= includes_keywords if text.present?
+
+        # Adding to threads only if it is valid, if not deleting scores, summary and reviewers from self
+        if !is_valid
+          self.summary.delete(reviewee.name)
+          self.avg_scores_by_reviewee.delete(reviewee.name)
+          self.avg_scores_by_round.delete(reviewee.name)
+          self.avg_scores_by_criterion.delete(reviewee.name)
+          self.reviewers.delete(reviewee.name)
+        end
       end
 
       self
@@ -173,8 +200,9 @@ module SummaryHelper
 
     # convert answers to each question to sentences
     def get_sentences(ans)
-      sentences = ans.comments.gsub!(/[.?!]/, '\1|').split('|').map!(&:strip) unless ans.comments.nil?
-      sentences
+        sentences = ans.comments.gsub!(/[.?!]/, '\1|')
+        sentences = sentences.split('|').map!(&:strip) unless sentences.nil?
+        sentences
     end
 
     def break_up_comments_to_sentences(question_answers)
