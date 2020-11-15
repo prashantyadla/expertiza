@@ -1,6 +1,5 @@
 <h1>Assignments</h1>
 <%= render 'publishing_rights' %>
-
 <div style="">
   <div class="taskbox">
     <strong>&nbsp;&nbsp;<span class="tasknum">&nbsp;<%= @tasknotstarted.size.to_s %>&nbsp;</span> Tasks not yet started<br></strong><br>
@@ -85,10 +84,13 @@
 <% end %>
 
 </div>
-</div>
+
+
+<input type="text" id="assignmentFilter" onkeyup="myFunction()" placeholder="Search for names.." title="Type in a name">
 
 <div class="topictable">
-  <table class="table table-striped" cellpadding="2">
+
+  <table class="table table-striped" cellpadding="2" id="assignmentTable">
     <tr class="taskheader">
       <th>Assignment</th>
       <th>Course</th>
@@ -135,3 +137,25 @@
     <% end %>
   </table>
 </div>
+
+
+<script>
+function myFunction() {
+  var input, filter, table, tr, td, i, txtValue;
+  input = document.getElementById("assignmentFilter");
+  filter = input.value.toLowerCase();
+  table = document.getElementById("assignmentTable");
+  tr = table.getElementsByTagName("tr");
+  for (i = 0; i < tr.length; i++) {
+    td = tr[i].getElementsByTagName("td")[0];
+    if (td) {
+      txtValue = td.textContent || td.innerText;
+      if (txtValue.toUpperCase().indexOf(filter) > -1) {
+        tr[i].style.display = "";
+      } else {
+        tr[i].style.display = "none";
+      }
+    }       
+  }
+}
+</script>
