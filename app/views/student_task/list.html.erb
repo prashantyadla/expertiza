@@ -143,7 +143,7 @@
 function myFunction() {
   var input, filter, table, tr, td, i, txtValue;
   input = document.getElementById("assignmentFilter");
-  filter = input.value.toLowerCase();
+  filter = input.value.toUpperCase();
   table = document.getElementById("assignmentTable");
   tr = table.getElementsByTagName("tr");
   for (i = 0; i < tr.length; i++) {
